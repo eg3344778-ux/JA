@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego Consolidado - Interfaz Pura + Selector BLE</title>
+    <style>
+        /* --- ESTILOS GENERALES (Cyber Dark & Blue Neon) --- */
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, sans-serif; 
+            background: #020612; 
+            color: #ffffff; 
+            text-align: center; 
+            margin: 0; 
+            padding: 20px; 
+            position: relative; 
+            min-height: 90vh;
+        }
+
+        /* Caja contenedora con brillo azul */
+        .box { 
+            background: #050c18; 
+            margin: 40px auto; 
+            padding: 35px 25px; 
+            width: 85%; 
+            max-width: 650px; 
+            border-radius: 16px; 
+            border: 2px solid #0052cc; 
+            box-shadow: 0 0 25px rgba(0, 82, 204, 0.4), inset 0 0 15px rgba(0, 82, 204, 0.2); 
+        }
+
+        /* Botones Generales */
+        button { 
+            margin: 6px; 
+            padding: 14px 24px; 
+            cursor: pointer; 
+            border-radius: 8px; 
+            border: none; 
+            font-weight: bold; 
+            font-size: 15px; 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+            transition: all 0.2s ease-in-out; 
+        }
+        button:hover { opacity: 0.9; transform: scale(1.03); }
+
+        /* Entradas de texto */
+        input { 
+            padding: 14px; 
+            font-size: 16px; 
+            margin-bottom: 20px; 
+            background: #031124; 
+            color: #fff; 
+            border: 1px solid #0052cc; 
+            border-radius: 8px; 
+            width: 80%; 
+            max-width: 320px; 
+            outline: none; 
+            text-align: center; 
+        }
+        input:focus { 
+            border-color: #0099ff; 
+            box-shadow: 0 0 15px rgba(0, 153, 255, 0.6); 
+        }
+        
+        /* --- BARRA DE HERRAMIENTAS SUPERIOR --- */
+        .esquina-herramientas { position: absolute; top: 15px; width: calc(100% - 30px); display: flex; justify-content: space-between; z-index: 10; }
+        
+        /* Botones de la barra superior */
+        .btn-bluetooth { 
+            background: rgba(0, 82, 204, 0.15); 
+            color: #00b4d8; 
+            border: 1px solid #0052cc; 
+            font-size: 13px;
+            box-shadow: 0 0 10px rgba(0, 82, 204, 0.3);
+        }
+        .btn-admin { 
+            background: rgba(15, 23, 42, 0.6); 
+            color: #ffcc00; 
+            border: 1px solid #334155; 
+            font-size: 13px;
+        }
+
+        /* --- VENTANA EMERGENTE CONTRASEÑA ADMIN --- */
+        .modal-login { display: none; position: fixed; inset: 0; background: rgba(1, 4, 9, 0.85); z-index: 30; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-contenido { background: #070f1e; padding: 35px; border-radius: 16px; border: 2px solid #0052cc; box-shadow: 0 0 30px rgba(0,82,204,0.5); width: 85%; max-width: 380px; }
+
+        /* --- SUBPÁGINA: PANEL ADMIN --- */
+        #panel-admin { display: none; background: #000000; border: 1px solid #222; box-shadow: none; }
+        #panel-admin .box { 
+            background: #0d0d0d; 
+            border: 1px solid #3a0000; 
+            box-shadow: inset 0 0 10px rgba(230, 57, 70, 0.05); 
+        }
+        #panel-admin h3 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ffffff;
+            text-align: left;
+            border-left: 3px solid #e63946;
+            padding-left: 10px;
+            margin-bottom: 20px;
+        }
+        .btn-admin-act { 
+            background: #120000; 
+            color: #ffffff; 
+            border: 1px solid #e63946; 
+            box-shadow: 0 0 10px rgba(230, 57, 70, 0.1);
+        }
+        .btn-admin-danger { 
+            background: #e63946; 
+            color: white; 
+            box-shadow: 0 0 15px rgba(230, 57, 70, 0.3); 
+        }
+        .btn-admin-success {
+            background: #001a00;
+            color: #ffffff;
+            border: 1px solid #2ecc71;
+        }
+
+        /* Tabla de Clasificación */
+        .tabla-ranking { width: 100%; border-collapse: collapse; margin-top: 15px; background: #050505; color: #fff; border-radius: 4px; overflow: hidden; }
+        .tabla-ranking th { background-color: #0e0e0e; color: #8c8c8c; font-size: 11px; padding: 12px; text-transform: uppercase; border-bottom: 2px solid #1a1a1a; }
+        .tabla-ranking td { padding: 14px; text-align: center; border-bottom: 1px solid #111; font-size: 15px; }
+
+        /* --- SUBPÁGINA: JUGADOR Y MANDOS --- */
+        #registro-jugador { margin-top: 18vh; }
+        #juego-jugador { display: none; padding: 20px; }
+        #estadoJuego { font-size: 18px; font-weight: bold; margin-bottom: 25px; color: #64748b; letter-spacing: 1px; }
+        
+        /* Mandos de Dirección */
+        #contenedor-mandos { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; transition: all 0.4s; }
+        .tarjeta-mando { background: #040a14; border: 1px solid #0052cc; padding: 25px; border-radius: 16px; box-shadow: 0 0 20px rgba(0, 82, 204, 0.2); width: 320px; }
+        .tarjeta-mando h2 { font-size: 16px; color: #00b4d8; text-transform: uppercase; margin-bottom: 20px; }
+        
+        button.btn-direccion { width: 110px; height: 55px; margin: 8px; background: rgba(0, 82, 204, 0.1); color: #00b4d8; border: 1px solid #0052cc; font-size: 16px; border-radius: 10px; }
+        button.btn-direccion:active { background: #0052cc; color: white; box-shadow: 0 0 15px #0052cc; }
+        
+        .tarjeta-mando.secundario { border-color: #bd93f9; box-shadow: 0 0 20px rgba(189, 147, 249, 0.2); }
+        .tarjeta-mando.secundario h2 { color: #bd93f9; }
+        .tarjeta-mando.secundario button.btn-direccion { background: rgba(189, 147, 249, 0.1); color: #bd93f9; border-color: #bd93f9; }
+        .tarjeta-mando.secundario button.btn-direccion:active { background: #bd93f9; color: white; box-shadow: 0 0 15px #bd93f9; }
+        .fila { display: flex; justify-content: center; gap: 15px; }
+        
+        /* Ranking Flotante */
+        #rankingJugadorFlotante { position: fixed; top: 80px; right: 20px; background: #040a14; border: 1px solid #0052cc; padding: 20px; border-radius: 16px; display: none; box-shadow: 0 0 20px rgba(0,82,204,0.4); z-index: 5; width: 250px; animation: fadeIn 0.3s; }
+        #rankingJugadorFlotante table { width: 100%; border-collapse: collapse; }
+        #rankingJugadorFlotante th, #rankingJugadorFlotante td { padding: 10px; text-align: left; border-bottom: 1px solid #0d1f3d; }
+        #rankingJugadorFlotante th { color: #475569; font-size: 11px; text-transform: uppercase; }
+
+        /* --- ALERTA DINÁMICA DE GAME OVER --- */
+        #pantallaAlertaAdmin { display: none; margin: 25px auto; max-width: 500px; animation: fadeIn 0.4s; }
+        .gameover-box { background: #0a0101; border: 2px solid #e63946; border-radius: 12px; padding: 30px; box-shadow: 0 0 25px rgba(230, 57, 70, 0.4); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="esquina-herramientas">
+        <button id="btnConectarBLE" class="btn-top btn-bluetooth" onclick="solicitarDispositivoBluetooth()">🔷 Conectar BLE</button>
+        <button class="btn-top btn-admin" onclick="abrirModalAdmin()">👑 Admin</button>
+    </div>
+
+    <div id="modalLoginAdmin" class="modal-login">
+        <div class="modal-contenido">
+            <h2 style="margin-top:0; color:#ffcc00; font-size: 20px;">🔒 ACCESO SUPREMO</h2>
+            <p style="color: #64748b; font-size:14px;">Introduce la clave del Administrador:</p>
+            <input type="password" id="passAdmin" placeholder="••••••••"><br>
+            <button style="background:#1e293b; color:#94a3b8;" onclick="cerrarModalAdmin()">Cancelar</button>
+            <button style="background:#0052cc; color:white;" onclick="verificarPassword()">Confirmar</button>
+        </div>
+    </div>
+
+    <div id="registro-jugador" class="box">
+        <div style="font-size: 44px; margin-bottom: 15px; color:#00b4d8;">🎮</div>
+        <h1 style="text-transform: uppercase; font-size:32px; letter-spacing:2px; margin:0 0 10px 0; font-weight:900;">Bienvenido <span style="color:#0077b6;">al Juego</span></h1>
+        <p style="color: #64748b; font-size:15px; margin-bottom:30px;">Introduce tu nombre de piloto para empezar:</p>
+        <input id="nombreJugador" placeholder="Tu nombre aquí..."><br>
+        <button style="background: #0052cc; color: white; width: 85%; max-width: 340px; box-shadow: 0 4px 15px rgba(0, 82, 204, 0.4);" onclick="registrarAlJugador()">🚀 Entrar a los Mandos</button>
+        
+        <div style="display:flex; justify-content:space-around; margin-top:35px; border-top:1px solid #0d1f3d; padding-top:20px; font-size:11px; color:#475569;">
+            <div>🛡️ CONTROL TOTAL</div>
+            <div>⚡ TIEMPO REAL</div>
+            <div>🎯 PRECISO</div>
+        </div>
+    </div>
+
+    <div id="juego-jugador">
+        <h1 id="tituloJugador" style="letter-spacing: 1px;">Piloto Activo</h1>
+        <div id="estadoJuego">... Esperando conexión ...</div>
+        
+        <div id="pantallaAlertaAdmin"></div>
+
+        <div id="rankingJugadorFlotante">
+            <h3 style="margin-top:0; color:#00b4d8; font-size:15px; text-transform:uppercase;">🏆 Tabla de Posiciones</h3>
+            <table>
+                <thead><tr><th>Nombre</th><th>Puntos</th><th>Tiempo</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="contenedor-mandos">
+            <div class="tarjeta-mando">
+                <h2>Servos Principales N1</h2>
+                <button class="btn-direccion" onclick="ejecutarAccion('N1_ARRIBA')">Arriba</button>
+                <div class="fila">
+                    <button class="btn-direccion" onclick="ejecutarAccion('N1_IZQUIERDA')">Izquierda</button>
+                    <button class="btn-direccion" onclick="ejecutarAccion('N1_DERECHA')">Derecha</button>
+                </div>
+                <button class="btn-direccion" onclick="ejecutarAccion('N1_ABAJO')">Abajo</button>
+            </div>
+
+            <div class="tarjeta-mando americano secundario">
+                <h2>Servos Secundarios N2</h2>
+                <button class="btn-direccion" onclick="ejecutarAccion('N2_ARRIBA')">Arriba</button>
+                <div class="fila">
+                    <button class="btn-direccion" onclick="ejecutarAccion('N2_IZQUIERDA')">Izquierda</button>
+                    <button class="btn-direccion" onclick="ejecutarAccion('N2_DERECHA')">Derecha</button>
+                </div>
+                <button class="btn-direccion" onclick="ejecutarAccion('N2_ABAJO')">Abajo</button>
+            </div>
+        </div>
+
+        <br><br>
+        <button style="background:transparent; color:#475569; border:1px solid #1e293b; font-size:12px;" onclick="salirDelJuego()">Cerrar Juego</button>
+    </div>
+
+    <div id="panel-admin" class="box">
+        <h1 style="color: #e63946; font-size:34px; font-weight:900; letter-spacing:1px; text-transform:uppercase; margin:0 0 5px 0;">CONSOLA SUPREMA <span style="color:#ffffff; font-size:24px; display:block; font-weight:300;">DEL ADMIN</span></h1>
+        <p style="color: #666; font-size:14px; margin:0 0 30px 0;">Desde aquí controlas en vivo lo que ve y hace el jugador.</p>
+
+        <div class="box">
+            <h3>⚡ ACCIONES DE CONTROL EN TIEMPO REAL</h3>
+            <button class="btn-admin-act" onclick="adminToggleRanking()">👁️ Mostrar/Ocultar Ranked</button>
+            <button class="btn-admin-danger" style="background:#5a0000; border:1px solid #e63946;" onclick="adminCongelarJugador(true)">🔒 Congelar Mandos</button>
+            <button class="btn-admin-success" onclick="adminCongelarJugador(false)">🔓 Descongelar Mandos</button>
+        </div>
+
+        <div class="box">
+            <h3>🖼️ INYECCIÓN DE CONTENIDO E IMÁGENES</h3>
+            <button class="btn-admin-danger" onclick="adminLanzarCodigoJhonny()">🚩 Lanzar Código de Jhonny (BLE)</button>
+            <button class="btn-admin-act" style="border-color:#555;" onclick="adminLimpiarAlertas()">🧹 Limpiar Alertas</button>
+        </div>
+
+        <button style="background:#111; color:#e63946; border:1px solid #3a0000; font-size:13px;" onclick="salirModoAdmin()">🛑 Cerrar Sesión Suprema</button>
+
+        <div class="box" id="contenedorRankingAdmin">
+            <h3>🏆 VISTA DEL ADMIN (RANKED BASE)</h3>
+            <div id="tablaAdminContenedor"></div>
+        </div>
+    </div>
+
+<script>
+    // --- VARIABLES GLOBALES ---
+    let miNombre = "";
+    let contraseñaMaestra = "123468";
+    let rankingVisibleParaJugador = false;
+    let enModoAdmin = false;
+    let bluetoothConectado = false;
+    let nombreDispositivo = "";
+    
+    let puntosPartidaActual = 0;
+    let tiempoFinalTranscurrido = 0;
+    let intervaloTiempo;
+
+    let caracteristicaBLE = null;
+    const SERVC_UUID = "4fa2c730-1a8a-4531-9489-0fa334d75197";
+    const CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
+    const top10SimuladoBase = [
+        { name: "Estuardo", pts: 200, tiempo: 12.0 },
+        { name: "Carlos", pts: 180, tiempo: 14.0 },
+        { name: "Alejandro", pts: 150, tiempo: 11.0 },
+        { name: "Mariana", pts: 140, tiempo: 15.0 },
+        { name: "Roberto", pts: 120, tiempo: 10.0 },
+        { name: "Sofia", pts: 100, tiempo: 13.0 },
+        { name: "David", pts: 90, tiempo: 19.0 },
+        { name: "Lucia", pts: 80, tiempo: 16.0 },
+        { name: "Juan", pts: 60, tiempo: 22.0 },
+        { name: "Elena", pts: 40, tiempo: 14.0 }
+    ];
+
+    let listaJugadores = [...top10SimuladoBase];
+
+    // --- ACCESO Y SEGURIDAD ---
+    function abrirModalAdmin() {
+        document.getElementById("modalLoginAdmin").style.display = "flex";
+        document.getElementById("passAdmin").focus();
+    }
+
+    function cerrarModalAdmin() {
+        document.getElementById("modalLoginAdmin").style.display = "none";
+        document.getElementById("passAdmin").value = "";
+    }
+
+    function verificarPassword() {
+        const inputPass = document.getElementById("passAdmin").value;
+        if (inputPass === contraseñaMaestra) {
+            cerrarModalAdmin();
+            document.getElementById("registro-jugador").style.display = "none";
+            document.getElementById("juego-jugador").style.display = "none";
+            document.getElementById("panel-admin").style.display = "block";
+            enModoAdmin = true;
+            actualizarInterfazBluetooth();
+            renderizarTablasRanking();
+        } else {
+            alert("❌ Acceso Denegado. Contraseña Incorrecta.");
+        }
+    }
+
+    function salirModoAdmin() {
+        document.getElementById("panel-admin").style.display = "none";
+        enModoAdmin = false;
+        actualizarInterfazBluetooth();
+        if (miNombre) {
+            document.getElementById("juego-jugador").style.display = "block";
+        } else {
+            document.getElementById("registro-jugador").style.display = "block";
+        }
+    }
+
+    // --- JUGADOR Y FLUJO LOCAL ---
+    function registrarAlJugador() {
+        const inputNombre = document.getElementById("nombreJugador");
+        if (!inputNombre || !inputNombre.value.trim()) { 
+            alert("¡Debes ingresar un nombre para jugar!"); 
+            return; 
+        }
+        
+        miNombre = inputNombre.value.trim();
+        puntosPartidaActual = 0;
+        tiempoFinalTranscurrido = 0;
+        
+        listaJugadores = [...top10SimuladoBase]; 
+        listaJugadores.push({ name: miNombre, pts: 0, tiempo: 0 });
+
+        enviarTextoBLE(`JUGADOR:${miNombre}`);
+
+        document.getElementById("tituloJugador").innerHTML = `PILOTO ACTIVO: <span style="color:#00b4d8;">${miNombre.toUpperCase()}</span>`;
+        document.getElementById("registro-jugador").style.display = "none";
+        document.getElementById("juego-jugador").style.display = "block";
+
+        const pRanking = document.getElementById("rankingJugadorFlotante");
+        if (pRanking) {
+            pRanking.style.display = rankingVisibleParaJugador ? "block" : "none";
+        }
+
+        if (intervaloTiempo) clearInterval(intervaloTiempo);
+        
+        let inicioReloj = Date.now();
+        intervaloTiempo = setInterval(() => {
+            tiempoFinalTranscurrido = ((Date.now() - inicioReloj) / 1000).toFixed(1);
+        }, 100);
+
+        renderizarTablasRanking();
+    }
+
+    function salirDelJuego() {
+        clearInterval(intervaloTiempo);
+        miNombre = "";
+        puntosPartidaActual = 0;
+        tiempoFinalTranscurrido = 0;
+        listaJugadores = [...top10SimuladoBase]; 
+
+        document.getElementById("nombreJugador").value = "";
+        document.getElementById("juego-jugador").style.display = "none";
+        document.getElementById("registro-jugador").style.display = "block";
+        
+        enviarTextoBLE("TERMINAR_PARTIDA");
+        adminLimpiarAlertas();
+        renderizarTablasRanking();
+    }
+
+    // --- CONEXIÓN REAL BLUETOOTH ---
+    async function solicitarDispositivoBluetooth() {
+        if (bluetoothConectado) {
+            bluetoothConectado = false;
+            nombreDispositivo = "";
+            caracteristicaBLE = null;
+            actualizarInterfazBluetooth();
+            return;
+        }
+
+        try {
+            const dispositivo = await navigator.bluetooth.requestDevice({
+                filters: [{ name: "Servidor_Juego_BLE" }],
+                optionalServices: [SERVC_UUID]
+            });
+
+            const server = await dispositivo.gatt.connect();
+            const service = await server.getPrimaryService(SERVC_UUID);
+            caracteristicaBLE = await service.getCharacteristic(CHAR_UUID);
+
+            bluetoothConectado = true;
+            nombreDispositivo = dispositivo.name || "Servidor_Juego_BLE";
+            actualizarInterfazBluetooth();
+
+            await caracteristicaBLE.startNotifications();
+            caracteristicaBLE.addEventListener('characteristicvaluechanged', manejarNotificacionBLE);
+
+        } catch (error) {
+            alert("No se pudo conectar al Bluetooth: " + error.message);
+        }
+    }
+
+    // --- MANEJADOR DE EVENTOS EN TIEMPO REAL (CORREGIDO PARA FLUJO ESPECTADOR) ---
+    function manejarNotificacionBLE(event) {
+        const decodificador = new TextDecoder();
+        const mensaje = decodificador.decode(event.target.value).trim();
+        console.log("Mensaje de la ESP32 recibido:", mensaje);
+
+        // RESPUESTA AUTOMÁTICA DE ROLES DESDE LA ESP32
+        if (mensaje === "ROL:JUGADOR") {
+            document.getElementById("contenedor-mandos").style.pointerEvents = "auto";
+            document.getElementById("contenedor-mandos").style.filter = "none";
+            document.getElementById("estadoJuego").innerText = "🎮 ERES EL JUGADOR ACTIVO - Mandos habilitados";
+            document.getElementById("estadoJuego").style.color = "#00b4d8";
+        }
+        
+        if (mensaje === "ROL:ESPECTADOR") {
+            // Ocultamos los mandos inicialmente para que no estorben
+            document.getElementById("contenedor-mandos").style.display = "none";
+            document.getElementById("estadoJuego").innerText = "👥 Sala llena como jugador.";
+            document.getElementById("estadoJuego").style.color = "#ffcc00";
+
+            // Lanzamos de primero la alerta con el botón grande de Espectear
+            const areaAlerta = document.getElementById("pantallaAlertaAdmin");
+            areaAlerta.style.display = "block";
+            areaAlerta.innerHTML = `
+                <div id="cajaEspectadorMenu" class="gameover-box" style="border-color: #00bcd4; box-shadow: 0 0 25px rgba(0, 188, 212, 0.4); background: #040a14; padding: 20px;">
+                    <button id="btnEspectearFlujo" style="background: #00bcd4; color: black; width: 100%; padding: 15px; font-size: 18px; font-weight: 900;">
+                        👁️ Espectear Partida
+                    </button>
+                </div>
+            `;
+
+            // Asignamos el comportamiento al dar clic en Espectear
+            document.getElementById("btnEspectearFlujo").addEventListener('click', () => {
+                document.getElementById("estadoJuego").innerText = "👁️ MODO ESPECTADOR (ZONA RESTRINGIDA)";
+                
+                // Desplegamos los mandos pero totalmente grises y bloqueados
+                document.getElementById("contenedor-mandos").style.display = "flex";
+                document.getElementById("contenedor-mandos").style.pointerEvents = "none";
+                document.getElementById("contenedor-mandos").style.filter = "grayscale(100%) opacity(0.2)";
+                
+                // Forzamos el ranking en pantalla
+                rankingVisibleParaJugador = true;
+                document.getElementById("rankingJugadorFlotante").style.display = "block";
+
+                // Reemplazamos la tarjeta por el botón ADMIN que SÍ PUEDE TOCAR
+                areaAlerta.innerHTML = `
+                    <div class="gameover-box" style="border-color: #ffcc00; box-shadow: 0 0 25px rgba(255, 204, 0, 0.4); background: #070f1e; padding: 20px;">
+                        <p style="color: #64748b; font-size: 13px; margin: 0 0 10px 0;">Menu Espectador Autorizado</p>
+                        <button id="btnAdminSecreto" style="background: #ffcc00; color: #000; font-weight: bold; width: 90%; max-width: 280px; pointer-events: auto !important; cursor: pointer;">
+                            🛠️ EJECUTAR ACCIÓN ADMIN (BLE)
+                        </button>
+                    </div>
+                `;
+
+                // Acción exclusiva del botón admin
+                document.getElementById("btnAdminSecreto").addEventListener('click', () => {
+                    enviarTextoBLE("BOTON_ADMIN_PRESIONADO");
+                });
+            });
+        }
+
+        // SINCRONIZACIÓN DE MARCADOR EN TIEMPO REAL
+        if (mensaje.startsWith("SCORE:")) {
+            const datos = mensaje.replace("SCORE:", "").split(",");
+            puntosPartidaActual = parseInt(datos[0]);
+            tiempoFinalTranscurrido = parseFloat(datos[1]);
+            
+            let jugadorActual = listaJugadores.find(p => p.name === miNombre);
+            if (jugadorActual) {
+                jugadorActual.pts = puntosPartidaActual;
+                jugadorActual.tiempo = tiempoFinalTranscurrido;
+            }
+            renderizarTablasRanking();
+        }
+
+        if (mensaje.startsWith("NOTIFICACION:") && enModoAdmin) {
+            alert(mensaje); 
+        }
+    }
+
+    function enviarTextoBLE(texto) {
+        if (bluetoothConectado && caracteristicaBLE) {
+            const codificador = new TextEncoder();
+            caracteristicaBLE.writeValue(codificador.encode(texto))
+                .catch(err => console.log("Error al escribir por BLE:", err));
+        }
+    }
+
+    function actualizarInterfazBluetooth() {
+        const btnBLE = document.getElementById("btnConectarBLE");
+        const estadoTxt = document.getElementById("estadoJuego");
+
+        if (bluetoothConectado) {
+            btnBLE.innerText = "🔴 Desconectar";
+            btnBLE.style.background = "rgba(230, 57, 70, 0.2)";
+            btnBLE.style.borderColor = "#e63946";
+            btnBLE.style.color = "#e63946";
+        } else {
+            btnBLE.innerText = "🔷 Conectar BLE";
+            btnBLE.style.background = "rgba(0, 82, 204, 0.15)";
+            btnBLE.style.borderColor = "#0052cc";
+            btnBLE.style.color = "#00b4d8";
+            estadoTxt.innerText = "🟠 ESTADO: Esperando conexión Bluetooth";
+            estadoTxt.style.color = "#64748b";
+        }
+    }
+
+    function ejecutarAccion(comando) {
+        enviarTextoBLE(comando);
+
+        if (miNombre && comando !== "BLOQUEAR_CONTROLES" && comando !== "DESBLOQUEAR_CONTROLES") {
+            puntosPartidaActual += 2;
+            let jugadorActual = listaJugadores.find(p => p.name === miNombre);
+            if (jugadorActual) {
+                jugadorActual.pts = puntosPartidaActual;
+                jugadorActual.tiempo = parseFloat(tiempoFinalTranscurrido);
+            }
+            renderizarTablasRanking(); 
+        }
+    }
+
+    function adminToggleRanking() {
+        rankingVisibleParaJugador = !rankingVisibleParaJugador;
+        document.getElementById("rankingJugadorFlotante").style.display = rankingVisibleParaJugador ? "block" : "none";
+        if (rankingVisibleParaJugador) evaluarFinDePartidaAutomatico();
+    }
+
+    function adminCongelarJugador(debeCongelar) {
+        const mandos = document.getElementById("contenedor-mandos");
+        const indicadorEstado = document.getElementById("estadoJuego");
+
+        if (debeCongelar) {
+            mandos.style.pointerEvents = "none";
+            mandos.style.filter = "grayscale(100%) opacity(0.2)";
+            indicadorEstado.innerText = "🛑 MANDOS CONGELADOS POR EL ADMINISTRADOR";
+            indicadorEstado.style.color = "#e63946";
+            ejecutarAccion("BLOQUEAR_CONTROLES");
+        } else {
+            mandos.style.pointerEvents = "auto";
+            mandos.style.filter = "none";
+            indicadorEstado.innerText = "🟢 VINCULADO AL SERVIDOR BLE";
+            indicadorEstado.style.color = "#00b4d8";
+            ejecutarAccion("DESBLOQUEAR_CONTROLES");
+        }
+    }
+
+    function adminLanzarCodigoJhonny() {
+        enviarTextoBLE("CONECTAR_BLE");
+    }
+
+    function evaluarFinDePartidaAutomatico() {
+        if (!miNombre) return;
+        clearInterval(intervaloTiempo); 
+        let tFinalNum = parseFloat(tiempoFinalTranscurrido);
+        let corteTop10 = top10SimuladoBase[9]; 
+        let mensajeEvaluacion = "";
+
+        if (puntosPartidaActual > corteTop10.pts) {
+            mensajeEvaluacion = `🎉 <b>¡FANTÁSTICO!</b> Tus ${puntosPartidaActual} pts superan los ${corteTop10.pts} pts del puesto #10.`;
+        } else {
+            let diffPuntos = corteTop10.pts - puntosPartidaActual;
+            mensajeEvaluacion = `❌ Te faltan <b>${diffPuntos} puntos</b> para entrar al Top 10.`;
+        }
+
+        const areaAlerta = document.getElementById("pantallaAlertaAdmin");
+        areaAlerta.style.display = "block";
+        areaAlerta.innerHTML = `
+            <div class="gameover-box" style="border-color: #0052cc; box-shadow: 0 0 25px rgba(0, 82, 204, 0.4); background: #040a14;">
+                <h2 style="margin: 0; font-size: 22px; font-weight: 900; color: #00b4d8;">📊 ESTADO DEL DESAFÍO</h2>
+                <p style="color: #ffffff; font-size: 15px; margin: 15px 0;">${mensajeEvaluacion}</p>
+            </div>
+        `;
+    }
+
+    function adminLimpiarAlertas() {
+        document.getElementById("pantallaAlertaAdmin").style.display = "none";
+        adminCongelarJugador(false);
+    }
+
+    function renderizarTablasRanking() {
+        listaJugadores.sort((a, b) => b.pts - a.pts || (a.tiempo || 0) - (b.tiempo || 0));
+        let top10Mostrar = listaJugadores.slice(0, 10);
+
+        const cuerpoTablaFlotante = document.querySelector("#rankingJugadorFlotante tbody");
+        if (cuerpoTablaFlotante) {
+            let htmlFlotante = "";
+            top10Mostrar.forEach(p => {
+                let esFilaPropia = (p.name === miNombre) ? 'style="background:rgba(0, 82, 204, 0.25); font-weight:bold;"' : '';
+                htmlFlotante += `<tr ${esFilaPropia}><td>${p.name === miNombre ? p.name + " (Tú)" : p.name}</td><td style="color:#00b4d8; font-weight:bold;">${p.pts} pts</td><td>${p.tiempo ? p.tiempo + 's' : '--'}</td></tr>`;
+            });
+            cuerpoTablaFlotante.innerHTML = htmlFlotante;
+        }
+
+        const contenedorAdmin = document.getElementById("tablaAdminContenedor");
+        if (contenedorAdmin) {
+            let htmlAdmin = `<table class="tabla-ranking"><thead><tr><th>POS</th><th>PILOTO</th><th>PUNTOS</th><th>TIEMPO</th></tr></thead><tbody>`;
+            top10Mostrar.forEach((p, index) => {
+                let esFilaPropia = (p.name === miNombre) ? 'style="background:rgba(230, 57, 70, 0.15);"' : '';
+                htmlAdmin += `<tr ${esFilaPropia}><td><b style="color:#ffcc00;">#${index + 1}</b></td><td>${p.name}</td><td style="color:#ffcc00; font-weight:bold;">${p.pts} pts</td><td style="color:#00b4d8;">${p.tiempo ? p.tiempo + 's' : '--'}</td></tr>`;
+            });
+            contenedorAdmin.innerHTML = htmlAdmin + `</tbody></table>`;
+        }
+    }
+
+    renderizarTablasRanking();
+</script>
+</body>
+</html>
